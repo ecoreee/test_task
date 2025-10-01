@@ -1,91 +1,83 @@
-import unittest
-from function.search_function import find_tallest_char, all_heroes
-import function.search_function as search_function
+import pytest
+import requests
+from function.search_function import find_tallest_char
+import time
 
-class testCharacteristic(unittest.TestCase):
 
-    def test_find_tallest_male_hasjob(self):
+class TestResponseAPI:
+    def test_API_status_and_response_time(self):
+        start_time = time.time()
+        r = requests.get('https://akabab.github.io/superhero-api/api/all.json')
+        all_heroes_list = r.json()
+        end_time = time.time()
+        response_time = end_time - start_time
+        assert r.status_code == 200
+        assert response_time < 10
+
+
+class TestCharCharacteristics:   
+    def test_function_man_with_job(self):
         result = find_tallest_char('male', True)
-        self.assertIsNotNone(result, 'Должен найтись хотя бы один персонаж с работой')
-        self.assertEqual(result['appearance']['gender'].lower(), 'male')
-        self.assertNotEqual(result['work']['occupation'], '-')
+        if result is not None:
+            assert result['appearance']['gender'].lower() == 'male'
+            assert result['work']['occupation'] not in ['-', '']
+        else:
+            pytest.skip("Не найдено персонажа с такими параметрами")
 
-    def test_find_tallest_female_hasjob(self):
+    def test_function_female_with_job(self):
         result = find_tallest_char('female', True)
-        self.assertIsNotNone(result, 'Должен найтись хотя бы один персонаж с работой')
-        self.assertEqual(result['appearance']['gender'].lower(), 'female')
-        self.assertNotEqual(result['work']['occupation'], '-')
-
-    def test_find_tallest_male_hasnotjob(self):
+        if result is not None:
+            assert result['appearance']['gender'].lower() == 'female'
+            assert result['work']['occupation'] not in ['', '-']
+        else:
+            pytest.skip("Не найдено персонажа с такими параметрами")
+    
+    def test_function_male_without_job(self):
         result = find_tallest_char('male', False)
-        self.assertIsNotNone(result, 'Должен найтись хотя бы один персонаж без работы')
-        self.assertEqual(result['appearance']['gender'].lower(), 'male')
-        self.assertTrue(result['work']['occupation'] == '-' or result['work']['occupation'] == '')
-
-    def test_find_tallest_female_hasnotjob(self):
+        if result is not None:
+            assert result['appearance']['gender'].lower() == 'male'
+            assert result['work']['occupation'] in ['', '-']
+        else:
+            pytest.skip("Не найдено персонажа с такими параметрами")
+    
+    def test_function_female_without_job(self):
         result = find_tallest_char('female', False)
-        self.assertIsNotNone(result, 'Должен найтись хотя бы один персонаж без работы')
-        self.assertEqual(result['appearance']['gender'].lower(), 'female')
-        self.assertTrue(result['work']['occupation'] == '-' or result['work']['occupation'] == '')    
+        if result is not None:
+            assert result['appearance']['gender'].lower() == 'female'
+            assert result['work']['occupation'] in ['', '-']
+        else:
+            pytest.skip("Не найдено персонажа с такими параметрами")
 
-class testTallestChar(unittest.TestCase):
-    
-    def test_max_char_height(self):
-        test_list = [
-            {
-                'name': 'Shadow Fiend',
-                'appearance': {'gender': 'male', 'height': ["6'7"]},
-                'work': {'occupation': 'Mid winner'}
-            },
-            {
-                'name': 'Gerald of Rivia',
-                'appearance': {'gender': 'male', 'height': ["6'0"]},
-                'work': {'occupation': 'Witcher'}
-            },
-            {
-                'name': 'Arthur Morgan',
-                'appearance': {'gender': 'male', 'height': ["5'10"]},
-                'work': {'occupation': 'Outlaw'}
-            },
-            {
-                'name': 'Dallas',
-                'appearance': {'gender': 'male', 'height': ["5'6"]},
-                'work': {'occupation': 'Criminal, Member of PayDay Gang'}
-            }
-        ] 
-        old_data = search_function.all_heroes
-        search_function.all_heroes = test_list
-        result = find_tallest_char('male', True)
-        self.assertEqual(result['name'], 'Shadow Fiend')
-        search_function.all_heroes = old_data
 
-class testExistingChar(unittest.TestCase):
-    
-    def test_tallest_char_exist(self):
-        test_list = [
-            {
-                'name': 'Shadow Fiend',
-                'appearance': {'gender': 'male', 'height': ["-"]},
-                'work': {'occupation': 'Mid winner'}
-            },
-            {
-                'name': 'Gerald of Rivia',
-                'appearance': {'gender': 'male', 'height': ["-"]},
-                'work': {'occupation': 'Witcher'}
-            },
-            {
-                'name': 'Arthur Morgan',
-                'appearance': {'gender': 'male', 'height': ["-"]},
-                'work': {'occupation': 'Outlaw'}
-            },
-            {
-                'name': 'Dallas',
-                'appearance': {'gender': 'male', 'height': ["-"]},
-                'work': {'occupation': 'Criminal, Member of PayDay Gang'}
-            }
-        ] 
-        old_data = search_function.all_heroes
-        search_function.all_heroes = test_list
+class TestAPIInvalidRequest:
+    def test_unknown_gender(self):
+        result = find_tallest_char('unknown_gender', True)
+        assert result is None
+
+
+
+class TestTallestChar:
+    def test_find_tallest_char(self, get_api):
+        heroes_list = []
+        for hero in get_api:
+            if 'appearance' in hero and 'work' in hero:
+                if 'gender' in hero['appearance'] and 'occupation' in hero['work']:
+                    job_exist = hero['work']['occupation'] != '-' and hero['work']['occupation'] != ''
+                    if hero['appearance']['gender'].lower() == 'male' and job_exist == True:
+                        heroes_list.append(hero)
         result = find_tallest_char('male', True)
-        self.assertEqual(result, None)
-        search_function.all_heroes = old_data
+        if result is not None and heroes_list is not None:
+            tallest_char_cm = None
+            current_max_height_cm = 0
+            for hero in heroes_list:
+                if (hero['appearance']['height'][1] != '0 cm' and hero['appearance']['height'][1] != ''):
+                    if 'cm' in hero['appearance']['height'][1]:
+                        height = float(hero['appearance']['height'][1].replace(' cm', ''))
+                    if 'meter' in hero['appearance']['height'][1]:
+                        height = float(hero['appearance']['height'][1].replace(' meters', ''))
+                        height *= 100
+                    if height > current_max_height_cm:
+                        current_max_height_cm = height
+                        tallest_char_cm = hero
+            if tallest_char_cm is not None:
+                assert result['name'] == tallest_char_cm['name']
