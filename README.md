@@ -1,5 +1,4 @@
-## Тестовое задание на должность стажер QA Automation Engineer в Ozon Bank
-Задание - https://github.com/akabab/superhero-api.git
+## Задание на тестирование API
 ### Требования к ПО
 + Python 3.10 и выше
 ### Копирование репозитория и установка зависимостей
